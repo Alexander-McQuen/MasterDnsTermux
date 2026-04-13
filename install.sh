@@ -1,4 +1,3 @@
-
 #!/bin/bash
 clear
 echo -e "\e[32m======================================\e[0m"
@@ -201,8 +200,15 @@ while true; do
     echo -e "\e[32m[+] Resolver $NEW_RESOLVER added successfully.\e[0m"
 done
 
+# Create Smart Shortcut
+echo -e "\e[33m[+] Creating smart shortcut...\e[0m"
+echo "alias vpn='pkill -f master 2>/dev/null ; cd ~ && clear && ./master'" > ~/.bashrc
+source ~/.bashrc 2>/dev/null
+echo -e "\e[32m[+] Shortcut 'vpn' created successfully!\e[0m"
+
 # Execute
 clear
 echo -e "\e[32m[+] All setups completed!\e[0m"
+echo -e "\e[36m[!] For future connections, simply open Termux and type: vpn\e[0m"
 echo -e "\e[32m[+] Starting MasterDNS Client...\e[0m"
 ./master
