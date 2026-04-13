@@ -1,3 +1,4 @@
+
 #!/bin/bash
 clear
 echo -e "\e[32m======================================\e[0m"
@@ -33,24 +34,33 @@ DEF_PORT="18000"
 DEF_PROTO="SOCKS5"
 DEF_ENC="1"
 
-# Ask Basic Questions
+# Ask Basic Questions and Sanitize invisible characters (0x7f)
 read -r -p "$(echo -e "\e[33m[?] Domain \e[37m[$DEF_DOMAIN]: \e[0m")" USER_DOMAIN
 USER_DOMAIN=${USER_DOMAIN:-$DEF_DOMAIN}
+USER_DOMAIN="${USER_DOMAIN//$'\177'/}"
+USER_DOMAIN="${USER_DOMAIN//$'\b'/}"
 
 read -r -p "$(echo -e "\e[33m[?] Key \e[37m[$DEF_KEY]: \e[0m")" USER_KEY
 USER_KEY=${USER_KEY:-$DEF_KEY}
+USER_KEY="${USER_KEY//$'\177'/}"
+USER_KEY="${USER_KEY//$'\b'/}"
 
 read -r -p "$(echo -e "\e[33m[?] Listen Port \e[37m[$DEF_PORT]: \e[0m")" USER_PORT
 USER_PORT=${USER_PORT:-$DEF_PORT}
+USER_PORT="${USER_PORT//$'\177'/}"
+USER_PORT="${USER_PORT//$'\b'/}"
 
 read -r -p "$(echo -e "\e[33m[?] Protocol (SOCKS5/TCP) \e[37m[$DEF_PROTO]: \e[0m")" USER_PROTO
 USER_PROTO=${USER_PROTO:-$DEF_PROTO}
+USER_PROTO="${USER_PROTO//$'\177'/}"
+USER_PROTO="${USER_PROTO//$'\b'/}"
 
 read -r -p "$(echo -e "\e[33m[?] Encryption (0 to 5) \e[37m[$DEF_ENC]: \e[0m")" USER_ENC
 USER_ENC=${USER_ENC:-$DEF_ENC}
+USER_ENC="${USER_ENC//$'\177'/}"
+USER_ENC="${USER_ENC//$'\b'/}"
 
 # --- ADVANCED SETTINGS LOGIC ---
-# Default Advanced Values (from your provided file)
 ADV_STRATEGY="2"
 ADV_PACKET_DUP="2"
 ADV_DNS_ENABLED="false"
@@ -59,21 +69,27 @@ ADV_MTU_MAX_UP="150"
 
 echo -e "\n\e[36m[?] Do you want to configure advanced settings? (y/N): \e[0m"
 read -r WANT_ADVANCED
+WANT_ADVANCED="${WANT_ADVANCED//$'\177'/}"
+WANT_ADVANCED="${WANT_ADVANCED//$'\b'/}"
 
 if [[ "$WANT_ADVANCED" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     echo -e "\e[35m--- Advanced Configuration ---\e[0m"
     
     read -r -p "$(echo -e "\e[33m[?] Balancing Strategy (1-8) \e[37m[$ADV_STRATEGY]: \e[0m")" USER_STRATEGY
     ADV_STRATEGY=${USER_STRATEGY:-$ADV_STRATEGY}
+    ADV_STRATEGY="${ADV_STRATEGY//$'\177'/}"
 
     read -r -p "$(echo -e "\e[33m[?] Packet Duplication Count (1-4) \e[37m[$ADV_PACKET_DUP]: \e[0m")" USER_PACKET_DUP
     ADV_PACKET_DUP=${USER_PACKET_DUP:-$ADV_PACKET_DUP}
+    ADV_PACKET_DUP="${ADV_PACKET_DUP//$'\177'/}"
 
     read -r -p "$(echo -e "\e[33m[?] Enable Local DNS? (true/false) \e[37m[$ADV_DNS_ENABLED]: \e[0m")" USER_DNS_ENABLED
     ADV_DNS_ENABLED=${USER_DNS_ENABLED:-$ADV_DNS_ENABLED}
+    ADV_DNS_ENABLED="${ADV_DNS_ENABLED//$'\177'/}"
     
     read -r -p "$(echo -e "\e[33m[?] Max Upload MTU \e[37m[$ADV_MTU_MAX_UP]: \e[0m")" USER_MTU_MAX_UP
     ADV_MTU_MAX_UP=${USER_MTU_MAX_UP:-$ADV_MTU_MAX_UP}
+    ADV_MTU_MAX_UP="${ADV_MTU_MAX_UP//$'\177'/}"
 fi
 
 # Generate the TOML file
@@ -163,6 +179,9 @@ ARQ_TERMINAL_ACK_WAIT_TIMEOUT_SECONDS = 90.0
 LOG_LEVEL = "INFO"
 EOF
 
+# Safety net: Remove any lingering control characters from the final file
+sed -i 's/[\x01-\x1F\x7F]//g' client_config.toml
+
 # Resolvers Setup
 echo -e "\e[36m======================================\e[0m"
 echo -e "\e[36m           Resolvers Setup \e[0m"
@@ -173,6 +192,8 @@ echo -e "\e[32m[+] Default resolver 8.8.8.8 added.\e[0m"
 
 while true; do
     read -r -p "$(echo -e "\e[33m[?] Enter a resolver IP (or press ENTER to finish): \e[0m")" NEW_RESOLVER
+    NEW_RESOLVER="${NEW_RESOLVER//$'\177'/}"
+    NEW_RESOLVER="${NEW_RESOLVER//$'\b'/}"
     if [ -z "$NEW_RESOLVER" ]; then
         break
     fi
