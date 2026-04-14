@@ -55,7 +55,39 @@ read -r -p "$(echo -e "\e[33m[?] Encryption \e[37m[$DEF_ENC]: \e[0m")" USER_ENC
 USER_ENC=${USER_ENC:-$DEF_ENC}
 USER_ENC="${USER_ENC//$'\177'/}"
 
-# 5. Generate the PERFECT detailed config internally (100% error-free)
+# 5. --- ADVANCED SETTINGS LOGIC ---
+ADV_STRATEGY="2"
+ADV_PACKET_DUP="2"
+ADV_DNS_ENABLED="false"
+ADV_MTU_MIN_UP="38"
+ADV_MTU_MAX_UP="150"
+
+echo -e "\n\e[36m[?] Do you want to configure advanced settings? (y/N): \e[0m"
+read -r WANT_ADVANCED
+WANT_ADVANCED="${WANT_ADVANCED//$'\177'/}"
+WANT_ADVANCED="${WANT_ADVANCED//$'\b'/}"
+
+if [[ "$WANT_ADVANCED" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    echo -e "\e[35m--- Advanced Configuration ---\e[0m"
+    
+    read -r -p "$(echo -e "\e[33m[?] Balancing Strategy (1-8) \e[37m[$ADV_STRATEGY]: \e[0m")" USER_STRATEGY
+    ADV_STRATEGY=${USER_STRATEGY:-$ADV_STRATEGY}
+    ADV_STRATEGY="${ADV_STRATEGY//$'\177'/}"
+
+    read -r -p "$(echo -e "\e[33m[?] Packet Duplication Count (1-4) \e[37m[$ADV_PACKET_DUP]: \e[0m")" USER_PACKET_DUP
+    ADV_PACKET_DUP=${USER_PACKET_DUP:-$ADV_PACKET_DUP}
+    ADV_PACKET_DUP="${ADV_PACKET_DUP//$'\177'/}"
+
+    read -r -p "$(echo -e "\e[33m[?] Enable Local DNS? (true/false) \e[37m[$ADV_DNS_ENABLED]: \e[0m")" USER_DNS_ENABLED
+    ADV_DNS_ENABLED=${USER_DNS_ENABLED:-$ADV_DNS_ENABLED}
+    ADV_DNS_ENABLED="${ADV_DNS_ENABLED//$'\177'/}"
+    
+    read -r -p "$(echo -e "\e[33m[?] Max Upload MTU \e[37m[$ADV_MTU_MAX_UP]: \e[0m")" USER_MTU_MAX_UP
+    ADV_MTU_MAX_UP=${USER_MTU_MAX_UP:-$ADV_MTU_MAX_UP}
+    ADV_MTU_MAX_UP="${ADV_MTU_MAX_UP//$'\177'/}"
+fi
+
+# 6. Generate the PERFECT detailed config internally incorporating ALL user variables
 echo -e "\e[33m[+] Generating flawless advanced config file...\e[0m"
 cat << EOF > client_config.toml
 DOMAINS = ["${USER_DOMAIN}"]
@@ -67,7 +99,7 @@ LISTEN_PORT = ${USER_PORT}
 SOCKS5_AUTH = false
 SOCKS5_USER = "master_dns_vpn"
 SOCKS5_PASS = "master_dns_vpn"
-LOCAL_DNS_ENABLED = false
+LOCAL_DNS_ENABLED = ${ADV_DNS_ENABLED}
 LOCAL_DNS_IP = "127.0.0.1"
 LOCAL_DNS_PORT = 53
 LOCAL_DNS_CACHE_MAX_RECORDS = 10000
@@ -76,8 +108,8 @@ LOCAL_DNS_PENDING_TIMEOUT_SECONDS = 300.0
 DNS_RESPONSE_FRAGMENT_TIMEOUT_SECONDS = 60.0
 LOCAL_DNS_CACHE_PERSIST_TO_FILE = true
 LOCAL_DNS_CACHE_FLUSH_INTERVAL_SECONDS = 60.0
-RESOLVER_BALANCING_STRATEGY = 2
-PACKET_DUPLICATION_COUNT = 2
+RESOLVER_BALANCING_STRATEGY = ${ADV_STRATEGY}
+PACKET_DUPLICATION_COUNT = ${ADV_PACKET_DUP}
 SETUP_PACKET_DUPLICATION_COUNT = 2
 STREAM_RESOLVER_FAILOVER_RESEND_THRESHOLD = 2
 STREAM_RESOLVER_FAILOVER_COOLDOWN = 2.5
@@ -88,9 +120,9 @@ BASE_ENCODE_DATA = false
 UPLOAD_COMPRESSION_TYPE = 0
 DOWNLOAD_COMPRESSION_TYPE = 0
 COMPRESSION_MIN_SIZE = 120
-MIN_UPLOAD_MTU = 38
+MIN_UPLOAD_MTU = ${ADV_MTU_MIN_UP}
 MIN_DOWNLOAD_MTU = 100
-MAX_UPLOAD_MTU = 150
+MAX_UPLOAD_MTU = ${ADV_MTU_MAX_UP}
 MAX_DOWNLOAD_MTU = 500
 MTU_TEST_RETRIES = 2
 MTU_TEST_TIMEOUT = 2.0
@@ -142,7 +174,7 @@ ARQ_TERMINAL_ACK_WAIT_TIMEOUT_SECONDS = 90.0
 LOG_LEVEL = "INFO"
 EOF
 
-# 6. Resolvers Setup (Using ZIP + Adding new ones)
+# 7. Resolvers Setup (Using ZIP + Adding new ones)
 echo -e "\e[36m======================================\e[0m"
 echo -e "\e[36m           Resolvers Setup \e[0m"
 echo -e "\e[36m======================================\e[0m"
@@ -164,7 +196,7 @@ while true; do
     echo -e "\e[32m[+] Resolver $NEW_RESOLVER added to the list.\e[0m"
 done
 
-# 7. Create Smart Shortcut
+# 8. Create Smart Shortcut
 echo -e "\e[33m[+] Creating smart shortcut...\e[0m"
 echo -e '#!/bin/bash\npkill -f master 2>/dev/null\ncd ~\nclear\n./master' > $PREFIX/bin/vpn
 chmod +x $PREFIX/bin/vpn
