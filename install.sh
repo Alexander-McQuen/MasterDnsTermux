@@ -7,7 +7,7 @@ echo -e "\e[32m======================================\e[0m"
 cd ~
 
 # 1. Clean up old installation files
-rm -rf MasterDnsVPN* master client_config.toml client_resolvers.txt 2>/dev/null
+rm -rf MasterDnsVPN* master client_config.toml client_resolvers.txt temp_config.toml 2>/dev/null
 
 # 2. Download and Extract
 echo -e "\e[33m[+] Downloading resources...\e[0m"
@@ -23,11 +23,17 @@ find . -type f -name "client_config.toml" -exec mv {} ./client_config.toml \; 2>
 find . -type f -name "client_resolvers.txt" -exec mv {} ./client_resolvers.txt \; 2>/dev/null
 chmod +x master
 
-# Safely fix Windows line endings without destroying newlines
+# ==========================================
+# 🛑 THE MAGIC FILTER: Fix Encoding Issues 🛑
+# ==========================================
+# This removes ANY non-ASCII/invalid bytes (like 0xd0) from the file
+tr -cd '\11\12\15\40-\176' < client_config.toml > temp_config.toml 2>/dev/null
+mv temp_config.toml client_config.toml
+# Remove Windows line endings
 sed -i 's/\r//g' client_config.toml 2>/dev/null
 sed -i 's/\r//g' client_resolvers.txt 2>/dev/null
 
-echo -e "\e[32m[+] Core files and detailed config extracted.\e[0m"
+echo -e "\e[32m[+] Core files and detailed config extracted & cleaned.\e[0m"
 
 # 3. Read current defaults from the extracted file
 DEF_DOMAIN=$(grep "DOMAINS =" client_config.toml | cut -d'"' -f2)
