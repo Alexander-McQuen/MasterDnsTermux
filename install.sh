@@ -17,37 +17,24 @@ echo -e "\e[33m[+] Extracting files...\e[0m"
 unzip -q master.zip
 rm master.zip
 
-# Bring ALL necessary files to the root directory
+# 3. ONLY extract the executable and resolvers. WE IGNORE THE CORRUPTED ZIP CONFIG.
 find . -type f -name "MasterDnsVPN_Client_Termux_ARM64_*" -exec mv {} ./master \; 2>/dev/null
-find . -type f -name "client_config.toml" -exec mv {} ./client_config.toml \; 2>/dev/null
 find . -type f -name "client_resolvers.txt" -exec mv {} ./client_resolvers.txt \; 2>/dev/null
 chmod +x master
 
-# ==========================================
-# 🛑 THE MAGIC FILTER: Fix Encoding Issues 🛑
-# ==========================================
-# This removes ANY non-ASCII/invalid bytes (like 0xd0) from the file
-tr -cd '\11\12\15\40-\176' < client_config.toml > temp_config.toml 2>/dev/null
-mv temp_config.toml client_config.toml
-# Remove Windows line endings
-sed -i 's/\r//g' client_config.toml 2>/dev/null
-sed -i 's/\r//g' client_resolvers.txt 2>/dev/null
+echo -e "\e[32m[+] Core files and Resolvers extracted successfully.\e[0m"
 
-echo -e "\e[32m[+] Core files and detailed config extracted & cleaned.\e[0m"
-
-# 3. Read current defaults from the extracted file
-DEF_DOMAIN=$(grep "DOMAINS =" client_config.toml | cut -d'"' -f2)
-DEF_KEY=$(grep "ENCRYPTION_KEY =" client_config.toml | cut -d'"' -f2)
-DEF_PORT=$(grep "LISTEN_PORT =" client_config.toml | awk '{print $3}')
-DEF_PROTO=$(grep "PROTOCOL_TYPE =" client_config.toml | cut -d'"' -f2)
-DEF_ENC=$(grep "DATA_ENCRYPTION_METHOD =" client_config.toml | awk '{print $3}')
-
+# 4. Ask Basic Questions
 echo -e "\e[36m======================================\e[0m"
 echo -e "\e[36m     Configuration Setup \e[0m"
-echo -e "\e[36m  (Press ENTER to keep ZIP settings) \e[0m"
 echo -e "\e[36m======================================\e[0m"
 
-# Ask Basic Questions and Sanitize
+DEF_DOMAIN="v.domain.com"
+DEF_KEY="smoke-test-key-12345678901234567890123456789012"
+DEF_PORT="18000"
+DEF_PROTO="SOCKS5"
+DEF_ENC="1"
+
 read -r -p "$(echo -e "\e[33m[?] Domain \e[37m[$DEF_DOMAIN]: \e[0m")" USER_DOMAIN
 USER_DOMAIN=${USER_DOMAIN:-$DEF_DOMAIN}
 USER_DOMAIN="${USER_DOMAIN//$'\177'/}"
@@ -68,34 +55,101 @@ read -r -p "$(echo -e "\e[33m[?] Encryption \e[37m[$DEF_ENC]: \e[0m")" USER_ENC
 USER_ENC=${USER_ENC:-$DEF_ENC}
 USER_ENC="${USER_ENC//$'\177'/}"
 
-# 4. Update ONLY specific lines in the existing detailed config file
-echo -e "\e[33m[+] Updating configuration with your inputs...\e[0m"
-sed -i "s|DOMAINS = .*|DOMAINS = [\"$USER_DOMAIN\"]|g" client_config.toml
-sed -i "s|ENCRYPTION_KEY = .*|ENCRYPTION_KEY = \"$USER_KEY\"|g" client_config.toml
-sed -i "s|LISTEN_PORT = .*|LISTEN_PORT = $USER_PORT|g" client_config.toml
-sed -i "s|PROTOCOL_TYPE = .*|PROTOCOL_TYPE = \"$USER_PROTO\"|g" client_config.toml
-sed -i "s|DATA_ENCRYPTION_METHOD = .*|DATA_ENCRYPTION_METHOD = $USER_ENC|g" client_config.toml
+# 5. Generate the PERFECT detailed config internally (100% error-free)
+echo -e "\e[33m[+] Generating flawless advanced config file...\e[0m"
+cat << EOF > client_config.toml
+DOMAINS = ["${USER_DOMAIN}"]
+DATA_ENCRYPTION_METHOD = ${USER_ENC}
+ENCRYPTION_KEY = "${USER_KEY}"
+PROTOCOL_TYPE = "${USER_PROTO}"
+LISTEN_IP = "127.0.0.1"
+LISTEN_PORT = ${USER_PORT}
+SOCKS5_AUTH = false
+SOCKS5_USER = "master_dns_vpn"
+SOCKS5_PASS = "master_dns_vpn"
+LOCAL_DNS_ENABLED = false
+LOCAL_DNS_IP = "127.0.0.1"
+LOCAL_DNS_PORT = 53
+LOCAL_DNS_CACHE_MAX_RECORDS = 10000
+LOCAL_DNS_CACHE_TTL_SECONDS = 14400.0
+LOCAL_DNS_PENDING_TIMEOUT_SECONDS = 300.0
+DNS_RESPONSE_FRAGMENT_TIMEOUT_SECONDS = 60.0
+LOCAL_DNS_CACHE_PERSIST_TO_FILE = true
+LOCAL_DNS_CACHE_FLUSH_INTERVAL_SECONDS = 60.0
+RESOLVER_BALANCING_STRATEGY = 2
+PACKET_DUPLICATION_COUNT = 2
+SETUP_PACKET_DUPLICATION_COUNT = 2
+STREAM_RESOLVER_FAILOVER_RESEND_THRESHOLD = 2
+STREAM_RESOLVER_FAILOVER_COOLDOWN = 2.5
+RECHECK_INACTIVE_SERVERS_ENABLED = true
+AUTO_DISABLE_TIMEOUT_SERVERS = true
+AUTO_DISABLE_TIMEOUT_WINDOW_SECONDS = 30.0
+BASE_ENCODE_DATA = false
+UPLOAD_COMPRESSION_TYPE = 0
+DOWNLOAD_COMPRESSION_TYPE = 0
+COMPRESSION_MIN_SIZE = 120
+MIN_UPLOAD_MTU = 38
+MIN_DOWNLOAD_MTU = 100
+MAX_UPLOAD_MTU = 150
+MAX_DOWNLOAD_MTU = 500
+MTU_TEST_RETRIES = 2
+MTU_TEST_TIMEOUT = 2.0
+MTU_TEST_PARALLELISM = 16
+SAVE_MTU_SERVERS_TO_FILE = false
+MTU_SERVERS_FILE_NAME = "masterdnsvpn_success_test_{time}.log"
+MTU_SERVERS_FILE_FORMAT = "{IP} ({DOMAIN}) - UP: {UP_MTU} DOWN: {DOWN-MTU}"
+MTU_USING_SECTION_SEPARATOR_TEXT = ""
+MTU_REMOVED_SERVER_LOG_FORMAT = "Resolver {IP} ({DOMAIN}) removed at {TIME} due to {CAUSE}"
+MTU_ADDED_SERVER_LOG_FORMAT = "Resolver {IP} ({DOMAIN}) added back at {TIME} (UP {UP_MTU}, DOWN {DOWN_MTU})"
+MTU_REACTIVE_ADDED_SERVER_LOG_FORMAT = "Resolver {IP} ({DOMAIN}) added back at {TIME} after reactive recheck (UP {UP_MTU}, DOWN {DOWN_MTU})"
+RX_TX_WORKERS = 4
+TUNNEL_PROCESS_WORKERS = 6
+TUNNEL_PACKET_TIMEOUT_SECONDS = 10.0
+DISPATCHER_IDLE_POLL_INTERVAL_SECONDS = 0.020
+RX_CHANNEL_SIZE = 4096
+SOCKS_UDP_ASSOCIATE_READ_TIMEOUT_SECONDS = 30.0
+CLIENT_TERMINAL_STREAM_RETENTION_SECONDS = 45.0
+CLIENT_CANCELLED_SETUP_RETENTION_SECONDS = 120.0
+SESSION_INIT_RETRY_BASE_SECONDS = 1.0
+SESSION_INIT_RETRY_STEP_SECONDS = 1.0
+SESSION_INIT_RETRY_LINEAR_AFTER = 5
+SESSION_INIT_RETRY_MAX_SECONDS = 60.0
+SESSION_INIT_BUSY_RETRY_INTERVAL_SECONDS = 60.0
+SESSION_INIT_RACING_COUNT = 3
+PING_AGGRESSIVE_INTERVAL_SECONDS = 0.100
+PING_LAZY_INTERVAL_SECONDS = 0.750
+PING_COOLDOWN_INTERVAL_SECONDS = 2.0
+PING_COLD_INTERVAL_SECONDS = 15.0
+PING_WARM_THRESHOLD_SECONDS = 8.0
+PING_COOL_THRESHOLD_SECONDS = 20.0
+PING_COLD_THRESHOLD_SECONDS = 30.0
+MAX_PACKETS_PER_BATCH = 8
+ARQ_WINDOW_SIZE = 600
+ARQ_INITIAL_RTO_SECONDS = 1.0
+ARQ_MAX_RTO_SECONDS = 5.0
+ARQ_CONTROL_INITIAL_RTO_SECONDS = 0.5
+ARQ_CONTROL_MAX_RTO_SECONDS = 3.0
+ARQ_MAX_CONTROL_RETRIES = 400
+ARQ_INACTIVITY_TIMEOUT_SECONDS = 1800.0
+ARQ_DATA_PACKET_TTL_SECONDS = 2400.0
+ARQ_CONTROL_PACKET_TTL_SECONDS = 1200.0
+ARQ_MAX_DATA_RETRIES = 1200
+ARQ_DATA_NACK_MAX_GAP = 16
+ARQ_DATA_NACK_INITIAL_DELAY_SECONDS = 0.1
+ARQ_DATA_NACK_REPEAT_SECONDS = 1.0
+ARQ_TERMINAL_DRAIN_TIMEOUT_SECONDS = 120.0
+ARQ_TERMINAL_ACK_WAIT_TIMEOUT_SECONDS = 90.0
+LOG_LEVEL = "INFO"
+EOF
 
-# --- OPTIONAL ADVANCED SETTINGS ---
-echo -e "\n\e[36m[?] Do you want to modify other advanced settings from ZIP? (y/N): \e[0m"
-read -r WANT_ADVANCED
-WANT_ADVANCED="${WANT_ADVANCED//$'\177'/}"
-
-if [[ "$WANT_ADVANCED" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    read -r -p "$(echo -e "\e[33m[?] Max Upload MTU: \e[0m")" USER_MTU
-    if [ ! -z "$USER_MTU" ]; then
-        sed -i "s|MAX_UPLOAD_MTU = .*|MAX_UPLOAD_MTU = ${USER_MTU//$'\177'/}|g" client_config.toml
-    fi
-fi
-
-# 5. Resolvers Setup (APPENDING to existing file)
+# 6. Resolvers Setup (Using ZIP + Adding new ones)
 echo -e "\e[36m======================================\e[0m"
 echo -e "\e[36m           Resolvers Setup \e[0m"
 echo -e "\e[36m======================================\e[0m"
 
 if [ -f "client_resolvers.txt" ]; then
     EXISTING_COUNT=$(wc -l < client_resolvers.txt)
-    echo -e "\e[32m[+] Found $EXISTING_COUNT resolvers in ZIP file.\e[0m"
+    echo -e "\e[32m[+] Successfully loaded $EXISTING_COUNT resolvers from ZIP!\e[0m"
 else
     touch client_resolvers.txt
 fi
@@ -110,7 +164,7 @@ while true; do
     echo -e "\e[32m[+] Resolver $NEW_RESOLVER added to the list.\e[0m"
 done
 
-# 6. Create Smart Shortcut
+# 7. Create Smart Shortcut
 echo -e "\e[33m[+] Creating smart shortcut...\e[0m"
 echo -e '#!/bin/bash\npkill -f master 2>/dev/null\ncd ~\nclear\n./master' > $PREFIX/bin/vpn
 chmod +x $PREFIX/bin/vpn
@@ -118,7 +172,6 @@ chmod +x $PREFIX/bin/vpn
 # Execute
 clear
 echo -e "\e[32m[+] All setups completed!\e[0m"
-echo -e "\e[36m[!] Detailed ZIP settings preserved.\e[0m"
 echo -e "\e[36m[!] Type 'vpn' anytime to reconnect.\e[0m"
 echo -e "\e[32m[+] Starting MasterDNS Client...\e[0m"
 ./master
