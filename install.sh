@@ -17,15 +17,19 @@ echo -e "\e[33m[+] Extracting files...\e[0m"
 unzip -q master.zip
 rm master.zip
 
-# Bring ALL necessary files to the root directory regardless of zip folder structure
+# Bring ALL necessary files to the root directory
 find . -type f -name "MasterDnsVPN_Client_Termux_ARM64_*" -exec mv {} ./master \; 2>/dev/null
 find . -type f -name "client_config.toml" -exec mv {} ./client_config.toml \; 2>/dev/null
 find . -type f -name "client_resolvers.txt" -exec mv {} ./client_resolvers.txt \; 2>/dev/null
 chmod +x master
 
+# Safely fix Windows line endings without destroying newlines
+sed -i 's/\r//g' client_config.toml 2>/dev/null
+sed -i 's/\r//g' client_resolvers.txt 2>/dev/null
+
 echo -e "\e[32m[+] Core files and detailed config extracted.\e[0m"
 
-# 3. Read current defaults from the extracted file (to show to user)
+# 3. Read current defaults from the extracted file
 DEF_DOMAIN=$(grep "DOMAINS =" client_config.toml | cut -d'"' -f2)
 DEF_KEY=$(grep "ENCRYPTION_KEY =" client_config.toml | cut -d'"' -f2)
 DEF_PORT=$(grep "LISTEN_PORT =" client_config.toml | awk '{print $3}')
@@ -66,7 +70,7 @@ sed -i "s|LISTEN_PORT = .*|LISTEN_PORT = $USER_PORT|g" client_config.toml
 sed -i "s|PROTOCOL_TYPE = .*|PROTOCOL_TYPE = \"$USER_PROTO\"|g" client_config.toml
 sed -i "s|DATA_ENCRYPTION_METHOD = .*|DATA_ENCRYPTION_METHOD = $USER_ENC|g" client_config.toml
 
-# --- OPTIONAL ADVANCED SETTINGS (If user wants to modify more) ---
+# --- OPTIONAL ADVANCED SETTINGS ---
 echo -e "\n\e[36m[?] Do you want to modify other advanced settings from ZIP? (y/N): \e[0m"
 read -r WANT_ADVANCED
 WANT_ADVANCED="${WANT_ADVANCED//$'\177'/}"
@@ -78,15 +82,11 @@ if [[ "$WANT_ADVANCED" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     fi
 fi
 
-# Clean up hidden characters from the file
-sed -i 's/[\x01-\x1F\x7F]//g' client_config.toml
-
 # 5. Resolvers Setup (APPENDING to existing file)
 echo -e "\e[36m======================================\e[0m"
 echo -e "\e[36m           Resolvers Setup \e[0m"
 echo -e "\e[36m======================================\e[0m"
 
-# Check if resolvers file exists and count them
 if [ -f "client_resolvers.txt" ]; then
     EXISTING_COUNT=$(wc -l < client_resolvers.txt)
     echo -e "\e[32m[+] Found $EXISTING_COUNT resolvers in ZIP file.\e[0m"
