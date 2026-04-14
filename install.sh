@@ -200,10 +200,10 @@ while true; do
     echo -e "\e[32m[+] Resolver $NEW_RESOLVER added successfully.\e[0m"
 done
 
-# Create Smart Shortcut
+# Create Smart Shortcut (As a Real System Command)
 echo -e "\e[33m[+] Creating smart shortcut...\e[0m"
-echo "alias vpn='pkill -f master 2>/dev/null ; cd ~ && clear && ./master'" > ~/.bashrc
-source ~/.bashrc 2>/dev/null
+echo -e '#!/bin/bash\npkill -f master 2>/dev/null\ncd ~\nclear\n./master' > $PREFIX/bin/vpn
+chmod +x $PREFIX/bin/vpn
 echo -e "\e[32m[+] Shortcut 'vpn' created successfully!\e[0m"
 
 # Execute
